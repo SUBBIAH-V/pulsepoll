@@ -99,7 +99,13 @@ func (s *PollService) CreatePoll(ctx context.Context, userIDStr string, req *mod
 		expiresAt = &exp
 	}
 
+	// Generate unique random 6-digit PIN code (e.g. 839102)
+	nanoTime := time.Now().UnixNano()
+	pinCodeNum := 100000 + (nanoTime % 899999)
+	pinCode := fmt.Sprintf("%06d", pinCodeNum)
+
 	poll := &models.Poll{
+		PinCode:             pinCode,
 		Question:            firstQuestion.Title,
 		Options:             firstQuestion.Options,
 		Questions:           questionItems,
@@ -229,6 +235,7 @@ func (s *PollService) GetPollByID(ctx context.Context, pollID string) (*models.P
 
 	return &models.PollResultResponse{
 		PollID:              poll.ID.Hex(),
+		PinCode:             poll.PinCode,
 		Question:            activeTitle,
 		Options:             poll.Options,
 		Questions:           updatedQuestions,

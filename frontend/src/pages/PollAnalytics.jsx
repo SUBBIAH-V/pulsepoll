@@ -94,7 +94,7 @@ export const PollAnalytics = () => {
   };
 
   const pollUrl = `${window.location.origin}/poll/${pollId}`;
-  const pinCode = pollId ? pollId.substring(0, 6).toUpperCase() : '------';
+  const pinCode = poll?.pinCode || (pollId ? pollId.substring(0, 6).toUpperCase() : '------');
 
   const copyPollLink = () => {
     soundFx.playClick();

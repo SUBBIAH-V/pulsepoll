@@ -70,7 +70,13 @@ func (r *PollRepository) GetPollByID(ctx context.Context, idStr string) (*models
 	if r.db.IsConnected && r.pollsColl != nil {
 		var poll models.Poll
 
-		// 1. Exact 24-character hex ObjectID lookup
+		// 1. Direct PIN Code lookup (exact match e.g. "839102")
+		err := r.pollsColl.FindOne(ctx, bson.M{"pinCode": cleanID}).Decode(&poll)
+		if err == nil {
+			return &poll, nil
+		}
+
+		// 2. Exact 24-character hex ObjectID lookup
 		if objID, err := primitive.ObjectIDFromHex(cleanID); err == nil {
 			err := r.pollsColl.FindOne(ctx, bson.M{"_id": objID}).Decode(&poll)
 			if err == nil {
@@ -78,15 +84,20 @@ func (r *PollRepository) GetPollByID(ctx context.Context, idStr string) (*models
 			}
 		}
 
-		// 2. Short 6-character PIN code or prefix lookup
+		// 3. Prefix lookup on ObjectID string or PIN Code regex
 		regexPattern := fmt.Sprintf("^%s", cleanID)
 		opts := options.FindOne().SetSort(bson.M{"created_at": -1})
-		err := r.pollsColl.FindOne(ctx, bson.M{
-			"$expr": bson.M{
-				"$regexMatch": bson.M{
-					"input":   bson.M{"$toString": "$_id"},
-					"regex":   regexPattern,
-					"options": "i",
+		err = r.pollsColl.FindOne(ctx, bson.M{
+			"$or": []bson.M{
+				{"pinCode": bson.M{"$regex": regexPattern, "$options": "i"}},
+				{
+					"$expr": bson.M{
+						"$regexMatch": bson.M{
+							"input":   bson.M{"$toString": "$_id"},
+							"regex":   regexPattern,
+							"options": "i",
+						},
+					},
 				},
 			},
 		}, opts).Decode(&poll)
@@ -102,7 +113,7 @@ func (r *PollRepository) GetPollByID(ctx context.Context, idStr string) (*models
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	for k, p := range r.memoryPolls {
-		if k == cleanID || strings.HasPrefix(strings.ToLower(k), cleanID) {
+		if k == cleanID || p.PinCode == cleanID || strings.HasPrefix(strings.ToLower(k), cleanID) {
 			return p, nil
 		}
 	}

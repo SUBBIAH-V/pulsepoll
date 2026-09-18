@@ -45,6 +45,7 @@ type QAItem struct {
 
 type Poll struct {
 	ID                  primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	PinCode             string             `bson:"pinCode" json:"pinCode"`
 	Question            string             `bson:"question" json:"question"`
 	Options             []Option           `bson:"options" json:"options"`
 	Questions           []QuestionItem     `bson:"questions,omitempty" json:"questions,omitempty"`
@@ -98,6 +99,7 @@ type SetActiveSlideRequest struct {
 
 type PollResultResponse struct {
 	PollID              string         `json:"pollId"`
+	PinCode             string         `json:"pinCode"`
 	Question            string         `json:"question"`
 	Options             []Option       `json:"options"`
 	Questions           []QuestionItem `json:"questions"`
