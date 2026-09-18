@@ -2,7 +2,8 @@ const isProduction = typeof window !== 'undefined' &&
   window.location.hostname !== 'localhost' && 
   window.location.hostname !== '127.0.0.1';
 
-let rawUrl = import.meta.env.VITE_API_URL || (isProduction ? 'https://pulsepoll-backend.onrender.com' : 'http://localhost:8080');
+// Exact Render Backend URL assigned by Render: https://pulsepoll-backend-h3vd.onrender.com
+let rawUrl = import.meta.env.VITE_API_URL || (isProduction ? 'https://pulsepoll-backend-h3vd.onrender.com' : 'http://localhost:8080');
 rawUrl = rawUrl.trim().replace(/\/+$/, ''); // strip trailing slash
 
 if (!rawUrl.endsWith('/api')) {
