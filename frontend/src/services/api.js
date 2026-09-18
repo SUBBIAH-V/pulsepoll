@@ -1,4 +1,8 @@
-let rawUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const isProduction = typeof window !== 'undefined' && 
+  window.location.hostname !== 'localhost' && 
+  window.location.hostname !== '127.0.0.1';
+
+let rawUrl = import.meta.env.VITE_API_URL || (isProduction ? 'https://pulsepoll-backend.onrender.com' : 'http://localhost:8080');
 rawUrl = rawUrl.trim().replace(/\/+$/, ''); // strip trailing slash
 
 if (!rawUrl.endsWith('/api')) {
@@ -25,8 +29,11 @@ export const fetchWithAuth = async (endpoint, options = {}) => {
   }
 
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const targetUrl = `${API_BASE_URL}${cleanEndpoint}`;
 
-  const response = await fetch(`${API_BASE_URL}${cleanEndpoint}`, {
+  console.log(`[API Request] ${options.method || 'GET'} → ${targetUrl}`);
+
+  const response = await fetch(targetUrl, {
     ...options,
     headers,
   });
