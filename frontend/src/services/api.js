@@ -33,10 +33,15 @@ export const fetchWithAuth = async (endpoint, options = {}) => {
 
   console.log(`[API Request] ${options.method || 'GET'} → ${targetUrl}`);
 
-  const response = await fetch(targetUrl, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(targetUrl, {
+      ...options,
+      headers,
+    });
+  } catch (err) {
+    throw new Error(`Network connection error to ${targetUrl}: ${err.message}`);
+  }
 
   const text = await response.text();
   let data = {};
@@ -49,7 +54,8 @@ export const fetchWithAuth = async (endpoint, options = {}) => {
   }
 
   if (!response.ok) {
-    throw new Error(data.message || data.error || `Server error (${response.status})`);
+    const errorDetail = data.message || data.error || `HTTP ${response.status}`;
+    throw new Error(`${errorDetail} (URL: ${targetUrl})`);
   }
 
   return data;
