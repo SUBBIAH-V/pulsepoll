@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -12,8 +11,6 @@ import (
 	"live-polling-app/backend/models"
 	"live-polling-app/backend/repository"
 	"live-polling-app/backend/websocket"
-
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type VoteService struct {
@@ -38,6 +35,8 @@ func (s *VoteService) SubmitVote(ctx context.Context, pollID string, req *models
 	if err != nil {
 		return nil, errors.New("poll not found")
 	}
+
+	canonicalID := poll.ID.Hex()
 
 	// 2. Validate Poll Status & Expiration
 	if poll.Status == "closed" || (poll.ExpiresAt != nil && time.Now().After(*poll.ExpiresAt)) {
@@ -79,13 +78,13 @@ func (s *VoteService) SubmitVote(ctx context.Context, pollID string, req *models
 	}
 
 	if voterID != "" {
-		redisVoteKey := fmt.Sprintf("voted:%s:%s", pollID, voterID)
+		redisVoteKey := fmt.Sprintf("voted:%s:%s", canonicalID, voterID)
 		alreadyVoted, _ := s.redisClient.Exists(ctx, redisVoteKey)
 		if alreadyVoted {
 			return nil, errors.New("you have already voted in this poll")
 		}
 
-		hasVotedInMongo, _ := s.pollRepo.HasVoted(ctx, pollID, voterID)
+		hasVotedInMongo, _ := s.pollRepo.HasVoted(ctx, canonicalID, voterID)
 		if hasVotedInMongo {
 			return nil, errors.New("you have already voted in this poll")
 		}
@@ -95,18 +94,17 @@ func (s *VoteService) SubmitVote(ctx context.Context, pollID string, req *models
 	}
 
 	// 5. ATOMIC REDIS HINCRBY: Increment vote count for the selected option in Redis
-	redisKey := fmt.Sprintf("poll:%s", pollID)
+	redisKey := fmt.Sprintf("poll:%s", canonicalID)
 	newCount, err := s.redisClient.HIncrBy(ctx, redisKey, req.OptionID, 1)
 	if err != nil {
 		log.Printf("Warning: Failed to execute Redis HINCRBY: %v", err)
 	} else {
-		log.Printf("Redis HINCRBY poll:%s option:%s -> new count: %d", pollID, req.OptionID, newCount)
+		log.Printf("Redis HINCRBY poll:%s option:%s -> new count: %d", canonicalID, req.OptionID, newCount)
 	}
 
 	// 6. Save audit vote record to MongoDB asynchronously / persistently
-	pollObjID, _ := primitive.ObjectIDFromHex(pollID)
 	voteRecord := &models.VoteRecord{
-		PollID:    pollObjID,
+		PollID:    poll.ID,
 		OptionID:  req.OptionID,
 		VoterID:   voterID,
 		IPAddress: clientIP,
@@ -115,11 +113,11 @@ func (s *VoteService) SubmitVote(ctx context.Context, pollID string, req *models
 		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = s.pollRepo.SaveVoteRecord(bgCtx, voteRecord)
-		_ = s.pollRepo.UpdatePollOptionVotes(bgCtx, pollID, req.OptionID, 1)
+		_ = s.pollRepo.UpdatePollOptionVotes(bgCtx, canonicalID, req.OptionID, 1)
 	}()
 
 	// 7. Get fresh aggregated poll results
-	updatedResults, err := s.pollService.GetPollByID(ctx, pollID)
+	updatedResults, err := s.pollService.GetPollByID(ctx, canonicalID)
 	if err != nil {
 		return nil, err
 	}

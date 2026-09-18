@@ -136,6 +136,8 @@ func (s *PollService) GetPollByID(ctx context.Context, pollID string) (*models.P
 		return nil, err
 	}
 
+	canonicalID := poll.ID.Hex()
+
 	// Check poll expiration status
 	isExpired := false
 	if poll.ExpiresAt != nil && time.Now().After(*poll.ExpiresAt) {
@@ -146,7 +148,7 @@ func (s *PollService) GetPollByID(ctx context.Context, pollID string) (*models.P
 	}
 
 	// Fetch LIVE vote counts from Redis
-	redisKey := fmt.Sprintf("poll:%s", pollID)
+	redisKey := fmt.Sprintf("poll:%s", canonicalID)
 	redisCounts, _ := s.redisClient.HGetAll(ctx, redisKey)
 
 	var totalVotes int64 = 0
