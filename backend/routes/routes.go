@@ -16,6 +16,14 @@ func SetupRouter(
 ) *gin.Engine {
 	r := gin.Default()
 
+	// Handle 404 and 405 with JSON responses
+	r.NoRoute(func(c *gin.Context) {
+		c.JSON(404, gin.H{"success": false, "message": "API endpoint not found: " + c.Request.URL.Path})
+	})
+	r.NoMethod(func(c *gin.Context) {
+		c.JSON(405, gin.H{"success": false, "message": "HTTP Method Not Allowed on " + c.Request.URL.Path})
+	})
+
 	// 1. CORS Middleware
 	r.Use(middleware.CORSMiddleware(cfg.FrontendURL))
 
@@ -57,12 +65,12 @@ func SetupRouter(
 	pollProtectedGroup.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 	{
 		pollProtectedGroup.POST("", pollHandler.CreatePoll)
+		pollProtectedGroup.POST("/", pollHandler.CreatePoll)
 		pollProtectedGroup.POST("/:id/close", pollHandler.ClosePoll)
 		pollProtectedGroup.POST("/:id/slide", pollHandler.SetActiveSlide)
 	}
 
 	r.GET("/api/my-polls", middleware.AuthMiddleware(cfg.JWTSecret), pollHandler.GetMyPolls)
-
 
 	// 6. WebSocket Endpoint
 	r.GET("/ws/polls/:id", wsHandler.ServeWS)
