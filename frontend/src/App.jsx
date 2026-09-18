@@ -14,6 +14,7 @@ import { Dashboard } from './pages/Dashboard';
 import { CreatePoll } from './pages/CreatePoll';
 import { PollView } from './pages/PollView';
 import { PollAnalytics } from './pages/PollAnalytics';
+import { Contact } from './pages/Contact';
 import { NotFound } from './pages/NotFound';
 
 export const App = () => {
@@ -33,6 +34,7 @@ export const App = () => {
                   <Route path="/" element={<Landing />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
+                  <Route path="/contact" element={<Contact />} />
                   <Route path="/poll/:id" element={<PollView />} />
 
                   {/* Protected Routes */}

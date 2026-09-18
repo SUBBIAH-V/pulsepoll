@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { soundFx } from '../utils/soundFx';
-import { Plus, LayoutDashboard, History, LogOut, LogIn, User, Menu, X, Volume2, VolumeX, ArrowRight } from 'lucide-react';
+import { Plus, LayoutDashboard, History, LogOut, LogIn, User, Menu, X, Volume2, VolumeX, ArrowRight, Mail } from 'lucide-react';
 
 export const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -65,14 +65,14 @@ export const Navbar = () => {
             </Link>
 
             <Link
-              to="/dashboard#history"
+              to="/contact"
               className={`px-4 py-2 rounded text-xs font-mono tracking-wider uppercase transition-colors ${
-                isActive('/dashboard#history')
+                isActive('/contact')
                   ? 'text-[#F5F3EE] bg-[#191919] border border-[#292929]'
                   : 'text-[#A3A3A3] hover:text-[#F5F3EE] hover:bg-[#141414]'
               }`}
             >
-              History
+              Contact
             </Link>
           </div>
 
@@ -161,12 +161,12 @@ export const Navbar = () => {
             </Link>
 
             <Link
-              to="/dashboard#history"
+              to="/contact"
               onClick={() => setIsMobileMenuOpen(false)}
               className="px-4 py-3 rounded bg-[#141414] border border-[#292929] text-[#A3A3A3] flex items-center justify-between"
             >
-              <span>Poll History</span>
-              <History className="w-4 h-4 text-[#707070]" />
+              <span>Contact Subbiah</span>
+              <Mail className="w-4 h-4 text-[#C62828]" />
             </Link>
 
             {isAuthenticated ? (
