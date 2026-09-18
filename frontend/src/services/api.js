@@ -31,10 +31,18 @@ export const fetchWithAuth = async (endpoint, options = {}) => {
     headers,
   });
 
-  const data = await response.json();
+  const text = await response.text();
+  let data = {};
+  if (text && text.trim()) {
+    try {
+      data = JSON.parse(text);
+    } catch (_) {
+      data = { message: text };
+    }
+  }
 
   if (!response.ok) {
-    throw new Error(data.message || data.error || 'An unexpected error occurred');
+    throw new Error(data.message || data.error || `Server error (${response.status})`);
   }
 
   return data;
