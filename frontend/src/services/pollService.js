@@ -30,7 +30,6 @@ export const pollService = {
     });
   },
 
-
   getPollByID: async (id) => {
     return await fetchWithAuth(`/polls/${id}`, {
       method: 'GET',
@@ -46,6 +45,17 @@ export const pollService = {
   getMyPolls: async () => {
     return await fetchWithAuth('/my-polls', {
       method: 'GET',
+    });
+  },
+
+  submitVote: async (pollId, optionId, questionId, voterId) => {
+    return await fetchWithAuth(`/polls/${pollId}/vote`, {
+      method: 'POST',
+      body: JSON.stringify({
+        optionId,
+        questionId,
+        voterId,
+      }),
     });
   },
 
@@ -93,4 +103,3 @@ export const pollService = {
     });
   },
 };
-
