@@ -11,11 +11,14 @@ export const Landing = () => {
   const handleJoinPoll = (e) => {
     e.preventDefault();
     if (joinPollId.trim()) {
-      let id = joinPollId.trim();
-      if (id.includes('/poll/')) {
-        id = id.split('/poll/')[1];
+      let raw = joinPollId.trim();
+      if (raw.includes('/poll/')) {
+        raw = raw.split('/poll/')[1];
       }
-      navigate(`/poll/${id}`);
+      const cleanId = raw.split('/')[0].split('?')[0].trim();
+      if (cleanId) {
+        navigate(`/poll/${cleanId}`);
+      }
     }
   };
 
