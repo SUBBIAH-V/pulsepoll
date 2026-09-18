@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-
-const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws';
+import { WS_BASE_URL } from '../services/api';
 
 export const useWebSocket = (pollId, onMessageReceived) => {
   const [isConnected, setIsConnected] = useState(false);
@@ -89,7 +88,7 @@ export const useWebSocket = (pollId, onMessageReceived) => {
       }
       setIsConnected(false);
     };
-  }, [pollId]); // ← ONLY re-run when pollId changes, NOT on every callback update
+  }, [pollId]);
 
   return { isConnected };
 };
