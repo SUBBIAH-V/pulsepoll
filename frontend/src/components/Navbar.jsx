@@ -54,6 +54,17 @@ export const Navbar = () => {
             </Link>
 
             <Link
+              to="/history"
+              className={`px-4 py-2 rounded text-xs font-mono tracking-wider uppercase transition-colors ${
+                isActive('/history')
+                  ? 'text-[#F5F3EE] bg-[#191919] border border-[#292929]'
+                  : 'text-[#A3A3A3] hover:text-[#F5F3EE] hover:bg-[#141414]'
+              }`}
+            >
+              Poll History
+            </Link>
+
+            <Link
               to="/create-poll"
               className={`px-4 py-2 rounded text-xs font-mono tracking-wider uppercase transition-colors ${
                 isActive('/create-poll')
@@ -149,6 +160,15 @@ export const Navbar = () => {
             >
               <span>Dashboard</span>
               <ArrowRight className="w-4 h-4 text-[#707070]" />
+            </Link>
+
+            <Link
+              to="/history"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="px-4 py-3 rounded bg-[#141414] border border-[#292929] text-[#F5F3EE] flex items-center justify-between"
+            >
+              <span>Poll History &amp; Archives</span>
+              <History className="w-4 h-4 text-[#C62828]" />
             </Link>
 
             <Link

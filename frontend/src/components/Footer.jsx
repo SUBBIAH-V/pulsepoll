@@ -11,7 +11,11 @@ export const Footer = () => {
             PULSE<span className="text-[#707070] font-normal">POLL</span>
           </span>
           <span className="text-[#292929]">|</span>
-          <Link to="/contact" className="hover:text-[#F5F3EE] transition-colors">
+          <Link to="/history" className="hover:text-[#F5F3EE] transition-colors uppercase">
+            POLL HISTORY
+          </Link>
+          <span className="text-[#292929]">|</span>
+          <Link to="/contact" className="hover:text-[#F5F3EE] transition-colors uppercase">
             CONTACT SUBBIAH
           </Link>
         </div>

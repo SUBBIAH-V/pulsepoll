@@ -14,6 +14,7 @@ import { Dashboard } from './pages/Dashboard';
 import { CreatePoll } from './pages/CreatePoll';
 import { PollView } from './pages/PollView';
 import { PollAnalytics } from './pages/PollAnalytics';
+import { PollHistory } from './pages/PollHistory';
 import { Contact } from './pages/Contact';
 import { NotFound } from './pages/NotFound';
 
@@ -43,6 +44,14 @@ export const App = () => {
                     element={
                       <ProtectedRoute>
                         <Dashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/history"
+                    element={
+                      <ProtectedRoute>
+                        <PollHistory />
                       </ProtectedRoute>
                     }
                   />
