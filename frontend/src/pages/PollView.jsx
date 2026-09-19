@@ -57,9 +57,13 @@ export const PollView = () => {
     const activeId = canonicalId || realPollId || pollId;
     const newVotedMap = {};
     const newSubmittedRespMap = {};
+    const isSingleQ = (questions || []).length <= 1;
+
     (questions || []).forEach((q) => {
-      const savedOpt = localStorage.getItem(`pulsepoll_voted_${activeId}_${q.id}`) ||
-                       localStorage.getItem(`pulsepoll_voted_${activeId}`);
+      let savedOpt = localStorage.getItem(`pulsepoll_voted_${activeId}_${q.id}`);
+      if (!savedOpt && isSingleQ) {
+        savedOpt = localStorage.getItem(`pulsepoll_voted_${activeId}`);
+      }
       if (savedOpt) {
         newVotedMap[q.id] = savedOpt;
       }
@@ -95,7 +99,8 @@ export const PollView = () => {
           setHasInitializedClosedModal(true);
         }
 
-        if (data.activeQuestionIndex !== undefined && data.activeQuestionIndex !== lastHostSlideIdx) {
+        // Only auto-jump to host active slide on initial page load
+        if (showSpinner && data.activeQuestionIndex !== undefined && data.activeQuestionIndex !== lastHostSlideIdx) {
           setLastHostSlideIdx(data.activeQuestionIndex);
           setActiveSlideIdx(data.activeQuestionIndex);
         }
