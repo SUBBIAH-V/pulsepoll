@@ -260,7 +260,7 @@ func (s *PollService) SetActiveSlide(ctx context.Context, pollID string, slideIn
 		return nil, errors.New("unauthorized: only creator can switch slides")
 	}
 
-	if err := s.pollRepo.SetActiveSlideIndex(ctx, pollID, slideIndex); err != nil {
+	if err := s.pollRepo.SetActiveQuestionIndex(ctx, pollID, slideIndex); err != nil {
 		return nil, err
 	}
 
@@ -284,7 +284,7 @@ func (s *PollService) SubmitOpenResponse(ctx context.Context, pollID string, req
 		CreatedAt: time.Now(),
 	}
 
-	if err := s.pollRepo.AddOpenResponse(ctx, pollID, req.QuestionID, openResp); err != nil {
+	if err := s.pollRepo.SaveOpenResponse(ctx, pollID, req.QuestionID, openResp); err != nil {
 		return nil, fmt.Errorf("failed to save response: %w", err)
 	}
 
@@ -339,7 +339,7 @@ func (s *PollService) UpvoteQAQuestion(ctx context.Context, pollID string, qaID 
 		}
 	}
 
-	if err := s.pollRepo.UpvoteQAQuestion(ctx, pollID, qaID, voterID); err != nil {
+	if err := s.pollRepo.UpvoteQAQuestion(ctx, pollID, qaID); err != nil {
 		return nil, fmt.Errorf("failed to upvote: %w", err)
 	}
 
@@ -347,12 +347,7 @@ func (s *PollService) UpvoteQAQuestion(ctx context.Context, pollID string, qaID 
 }
 
 func (s *PollService) GetMyPolls(ctx context.Context, userIDStr string) ([]*models.PollResultResponse, error) {
-	userID, err := primitive.ObjectIDFromHex(userIDStr)
-	if err != nil {
-		return nil, errors.New("invalid user ID")
-	}
-
-	polls, err := s.pollRepo.GetPollsByUserID(ctx, userID)
+	polls, err := s.pollRepo.GetMyPolls(ctx, userIDStr)
 	if err != nil {
 		return nil, err
 	}
@@ -379,7 +374,7 @@ func (s *PollService) ClosePoll(ctx context.Context, pollID string, userIDStr st
 		return nil, errors.New("unauthorized: only the poll creator can close this poll")
 	}
 
-	if err := s.pollRepo.UpdatePollStatus(ctx, pollID, "closed"); err != nil {
+	if err := s.pollRepo.ClosePoll(ctx, pollID); err != nil {
 		return nil, fmt.Errorf("failed to close poll: %w", err)
 	}
 

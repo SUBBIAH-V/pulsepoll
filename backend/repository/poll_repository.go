@@ -154,12 +154,28 @@ func (r *PollRepository) GetMyPolls(ctx context.Context, userID string) ([]*mode
 	return polls, nil
 }
 
-func (r *PollRepository) HasVoted(ctx context.Context, pollID string, voterIdentifier string) (bool, error) {
+func (r *PollRepository) HasVoted(ctx context.Context, pollID string, questionID string, voterIdentifier string) (bool, error) {
+	pollObjID, _ := primitive.ObjectIDFromHex(pollID)
 	if r.db.IsConnected && r.votesColl != nil {
-		count, err := r.votesColl.CountDocuments(ctx, bson.M{
-			"poll_id": pollID,
-			"voter":   voterIdentifier,
-		})
+		filter := bson.M{
+			"$or": []bson.M{
+				{"voterId": voterIdentifier},
+				{"voter": voterIdentifier},
+			},
+			"$and": []bson.M{
+				{
+					"$or": []bson.M{
+						{"pollId": pollObjID},
+						{"pollId": pollID},
+						{"poll_id": pollID},
+					},
+				},
+			},
+		}
+		if questionID != "" {
+			filter["questionId"] = questionID
+		}
+		count, err := r.votesColl.CountDocuments(ctx, filter)
 		if err != nil {
 			return false, err
 		}
@@ -170,8 +186,10 @@ func (r *PollRepository) HasVoted(ctx context.Context, pollID string, voterIdent
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	for _, rec := range r.memoryVoteRecs {
-		if rec.PollID == pollID && rec.VoterIdentifier == voterIdentifier {
-			return true, nil
+		if (rec.PollID.Hex() == pollID || rec.PollID.Hex() == "") && rec.VoterID == voterIdentifier {
+			if questionID == "" || rec.QuestionID == questionID {
+				return true, nil
+			}
 		}
 	}
 	return false, nil

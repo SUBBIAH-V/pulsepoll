@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -71,22 +72,27 @@ func (s *VoteService) SubmitVote(ctx context.Context, pollID string, req *models
 	}
 
 
-	// 4. Anti-Duplicate Vote Check (Session ID or IP combination)
+	// 4. Anti-Duplicate Vote Check (Per-Question / Per-Slide)
 	voterID := req.VoterID
 	if voterID == "" {
 		voterID = clientIP
 	}
 
+	qID := req.QuestionID
+	if qID == "" {
+		qID = "q1"
+	}
+
 	if voterID != "" {
-		redisVoteKey := fmt.Sprintf("voted:%s:%s", canonicalID, voterID)
+		redisVoteKey := fmt.Sprintf("voted:%s:%s:%s", canonicalID, qID, voterID)
 		alreadyVoted, _ := s.redisClient.Exists(ctx, redisVoteKey)
 		if alreadyVoted {
-			return nil, errors.New("you have already voted in this poll")
+			return nil, errors.New("you have already voted on this question")
 		}
 
-		hasVotedInMongo, _ := s.pollRepo.HasVoted(ctx, canonicalID, voterID)
+		hasVotedInMongo, _ := s.pollRepo.HasVoted(ctx, canonicalID, qID, voterID)
 		if hasVotedInMongo {
-			return nil, errors.New("you have already voted in this poll")
+			return nil, errors.New("you have already voted on this question")
 		}
 
 		// Mark voter key in Redis for 24 hours
@@ -104,16 +110,16 @@ func (s *VoteService) SubmitVote(ctx context.Context, pollID string, req *models
 
 	// 6. Save audit vote record to MongoDB asynchronously / persistently
 	voteRecord := &models.VoteRecord{
-		PollID:    poll.ID,
-		OptionID:  req.OptionID,
-		VoterID:   voterID,
-		IPAddress: clientIP,
+		PollID:     poll.ID,
+		QuestionID: qID,
+		OptionID:   req.OptionID,
+		VoterID:    voterID,
+		IPAddress:  clientIP,
 	}
 	go func() {
 		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = s.pollRepo.SaveVoteRecord(bgCtx, voteRecord)
-		_ = s.pollRepo.UpdatePollOptionVotes(bgCtx, canonicalID, req.OptionID, 1)
+		_ = s.pollRepo.RecordVote(bgCtx, voteRecord)
 	}()
 
 	// 7. Get fresh aggregated poll results
