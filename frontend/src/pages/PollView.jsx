@@ -49,18 +49,21 @@ export const PollView = () => {
   const [submittingQA, setSubmittingQA] = useState(false);
   const [upvotedQAIds, setUpvotedQAIds] = useState(new Set());
 
+  const [realPollId, setRealPollId] = useState('');
+
   const voterId = getVoterId();
 
-  const loadSavedVotes = (questions) => {
+  const loadSavedVotes = (questions, canonicalId) => {
+    const activeId = canonicalId || realPollId || pollId;
     const newVotedMap = {};
     const newSubmittedRespMap = {};
     (questions || []).forEach((q) => {
-      const savedOpt = localStorage.getItem(`pulsepoll_voted_${pollId}_${q.id}`) ||
-                       localStorage.getItem(`pulsepoll_voted_${pollId}`);
+      const savedOpt = localStorage.getItem(`pulsepoll_voted_${activeId}_${q.id}`) ||
+                       localStorage.getItem(`pulsepoll_voted_${activeId}`);
       if (savedOpt) {
         newVotedMap[q.id] = savedOpt;
       }
-      const savedResp = localStorage.getItem(`pulsepoll_resp_${pollId}_${q.id}`);
+      const savedResp = localStorage.getItem(`pulsepoll_resp_${activeId}_${q.id}`);
       if (savedResp) {
         newSubmittedRespMap[q.id] = true;
       }
@@ -76,12 +79,14 @@ export const PollView = () => {
       if (res && res.success && res.data) {
         const data = res.data;
         setPoll(data);
+        const canonicalId = data.pollId || pollId;
+        setRealPollId(canonicalId);
 
         const qList = data.questions && data.questions.length > 0
           ? data.questions
           : [{ id: 'q1', type: 'multiple_choice', title: data.question || '', options: data.options || [] }];
 
-        loadSavedVotes(qList);
+        loadSavedVotes(qList, canonicalId);
 
         // Check if poll is closed on initial fetch
         const isPollClosed = data.status === 'closed' || data.isExpired === true;
@@ -105,7 +110,8 @@ export const PollView = () => {
   };
 
   const handleRealtimeUpdate = useCallback((message) => {
-    if (message && message.pollId === pollId) {
+    const target = realPollId || pollId;
+    if (message && (message.pollId === target || message.pollId === pollId)) {
       if (message.type === 'poll_update' || message.type === 'slide_update' || message.type === 'qa_update') {
         fetchPollData(false);
       }
@@ -115,9 +121,9 @@ export const PollView = () => {
         try { soundFx.playClick(); } catch (_) {}
       }
     }
-  }, [pollId, lastHostSlideIdx]);
+  }, [pollId, realPollId, lastHostSlideIdx]);
 
-  const { isConnected } = useWebSocket(pollId, handleRealtimeUpdate);
+  const { isConnected } = useWebSocket(realPollId || pollId, handleRealtimeUpdate);
 
   useEffect(() => {
     if (pollId) {
@@ -147,12 +153,14 @@ export const PollView = () => {
     setSubmitting(true);
     setError('');
 
+    const targetId = realPollId || pollId;
+
     try {
       soundFx.playVoteSubmit();
-      const res = await pollService.submitVote(pollId, selectedOption, qId, voterId);
+      const res = await pollService.submitVote(targetId, selectedOption, qId, voterId);
       if (res && res.success) {
-        localStorage.setItem(`pulsepoll_voted_${pollId}_${qId}`, selectedOption);
-        localStorage.setItem(`pulsepoll_voted_${pollId}`, selectedOption);
+        localStorage.setItem(`pulsepoll_voted_${targetId}_${qId}`, selectedOption);
+        localStorage.setItem(`pulsepoll_voted_${targetId}`, selectedOption);
         setVotedMap((prev) => ({ ...prev, [qId]: selectedOption }));
         setSelectedOption('');
 
@@ -161,6 +169,13 @@ export const PollView = () => {
         } catch (_) {}
 
         fetchPollData(false);
+
+        // Auto transition to next slide if multi-slide presentation
+        if (activeSlideIdx < questionsList.length - 1) {
+          setTimeout(() => {
+            setActiveSlideIdx((prev) => prev + 1);
+          }, 1000);
+        }
       } else {
         setError(res?.message || 'Failed to submit vote');
       }
@@ -177,11 +192,13 @@ export const PollView = () => {
     setSubmitting(true);
     setError('');
 
+    const targetId = realPollId || pollId;
+
     try {
       soundFx.playVoteSubmit();
-      const res = await pollService.submitOpenResponse(pollId, qId, openResponseText.trim(), voterId);
+      const res = await pollService.submitOpenResponse(targetId, qId, openResponseText.trim(), voterId);
       if (res && res.success) {
-        localStorage.setItem(`pulsepoll_resp_${pollId}_${qId}`, 'true');
+        localStorage.setItem(`pulsepoll_resp_${targetId}_${qId}`, 'true');
         setSubmittedResponseMap((prev) => ({ ...prev, [qId]: true }));
         setOpenResponseText('');
 
@@ -190,6 +207,13 @@ export const PollView = () => {
         } catch (_) {}
 
         fetchPollData(false);
+
+        // Auto transition to next slide if multi-slide presentation
+        if (activeSlideIdx < questionsList.length - 1) {
+          setTimeout(() => {
+            setActiveSlideIdx((prev) => prev + 1);
+          }, 1000);
+        }
       } else {
         setError(res?.message || 'Failed to submit answer');
       }
@@ -483,7 +507,7 @@ export const PollView = () => {
                       onClick={handleVoteSubmit}
                       disabled={!selectedOption || submitting}
                       className={`
-                        w-full btn-accent font-mono text-xs uppercase tracking-wider py-4 px-6
+                        w-full btn-accent font-mono text-xs uppercase tracking-wider py-4 px-6 flex items-center justify-center space-x-2
                         ${!selectedOption || submitting ? 'opacity-40 cursor-not-allowed' : ''}
                       `}
                     >
@@ -493,7 +517,13 @@ export const PollView = () => {
                           <span>SUBMITTING...</span>
                         </>
                       ) : (
-                        <span>{selectedOption ? '🗳️ SUBMIT VOTE' : 'SELECT AN OPTION TO VOTE'}</span>
+                        <span>
+                          {!selectedOption
+                            ? 'SELECT AN OPTION TO VOTE'
+                            : (questionsList.length > 1 && activeSlideIdx < questionsList.length - 1
+                                ? `NEXT SLIDE (QUESTION ${activeSlideIdx + 2}/${questionsList.length}) ➔`
+                                : (questionsList.length > 1 ? '🗳️ SUBMIT FINAL VOTE' : '🗳️ SUBMIT VOTE'))}
+                        </span>
                       )}
                     </button>
                   </div>
@@ -501,15 +531,19 @@ export const PollView = () => {
                   <div className="space-y-3 pt-2 font-mono">
                     <div className="p-3.5 rounded border border-[#3A8F5B]/30 bg-[#3A8F5B]/10 text-center text-xs font-bold text-[#3A8F5B] flex items-center justify-center space-x-2">
                       <CheckCircle2 className="w-4 h-4 text-[#3A8F5B]" />
-                      <span>YOUR VOTE HAS BEEN RECORDED!</span>
+                      <span>
+                        {questionsList.length > 1 && activeSlideIdx === questionsList.length - 1
+                          ? '🎉 PRESENTATION COMPLETE! ALL YOUR RESPONSES HAVE BEEN SUBMITTED.'
+                          : 'YOUR VOTE HAS BEEN RECORDED!'}
+                      </span>
                     </div>
 
                     {activeSlideIdx < questionsList.length - 1 && (
                       <button
                         onClick={nextSlide}
-                        className="w-full btn-accent font-mono text-xs uppercase tracking-wider py-3.5 px-6"
+                        className="w-full btn-accent font-mono text-xs uppercase tracking-wider py-3.5 px-6 flex items-center justify-center space-x-2"
                       >
-                        <span>CONTINUE TO QUESTION {activeSlideIdx + 2}</span>
+                        <span>CONTINUE TO QUESTION {activeSlideIdx + 2} OF {questionsList.length}</span>
                         <ArrowRight className="w-4 h-4" />
                       </button>
                     )}
@@ -533,10 +567,14 @@ export const PollView = () => {
                     <button
                       type="submit"
                       disabled={!openResponseText.trim() || submitting}
-                      className="w-full btn-accent text-xs uppercase tracking-wider py-3.5 px-6 disabled:opacity-50"
+                      className="w-full btn-accent text-xs uppercase tracking-wider py-3.5 px-6 disabled:opacity-50 flex items-center justify-center space-x-2"
                     >
-                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                      <span>SUBMIT ANSWER</span>
+                      {submitting ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Send className="w-4 h-4 text-white" />}
+                      <span>
+                        {questionsList.length > 1 && activeSlideIdx < questionsList.length - 1
+                          ? `SUBMIT & NEXT SLIDE (QUESTION ${activeSlideIdx + 2}/${questionsList.length})`
+                          : 'SUBMIT ANSWER'}
+                      </span>
                     </button>
                   </form>
                 ) : (
