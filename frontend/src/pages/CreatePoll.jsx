@@ -123,6 +123,15 @@ export const CreatePoll = () => {
       if (res.success && res.data) {
         soundFx.playSuccess();
         setCreatedPoll(res.data);
+        
+        // Save locally for fallback history tracking
+        try {
+          const existingSaved = JSON.parse(localStorage.getItem('pulsepoll_created_polls') || '[]');
+          const pollIdNew = res.data.pollId || res.data.id;
+          const filtered = existingSaved.filter(p => (p.pollId || p.id) !== pollIdNew);
+          localStorage.setItem('pulsepoll_created_polls', JSON.stringify([res.data, ...filtered]));
+        } catch (_) {}
+
         showToast('✓ Poll created successfully');
       } else {
         setError(res.message || 'Failed to create poll presentation');

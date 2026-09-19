@@ -42,18 +42,33 @@ export const Dashboard = () => {
   }, []);
 
   const fetchMyPolls = async () => {
+    let apiPolls = [];
     try {
       const res = await pollService.getMyPolls();
-      if (res.success && res.data) {
-        setPolls(res.data);
-      } else {
-        setPolls([]);
+      if (res && res.success && Array.isArray(res.data)) {
+        apiPolls = res.data;
       }
-    } catch (err) {
-      setError(err.message || 'Failed to load your polls');
-    } finally {
-      setLoading(false);
-    }
+    } catch (_) {}
+
+    let localSaved = [];
+    try {
+      localSaved = JSON.parse(localStorage.getItem('pulsepoll_created_polls') || '[]');
+    } catch (_) {}
+
+    const combinedMap = new Map();
+    apiPolls.forEach(p => {
+      const id = p.pollId || p.id;
+      if (id) combinedMap.set(id, p);
+    });
+    localSaved.forEach(p => {
+      const id = p.pollId || p.id;
+      if (id && !combinedMap.has(id)) {
+        combinedMap.set(id, p);
+      }
+    });
+
+    setPolls(Array.from(combinedMap.values()));
+    setLoading(false);
   };
 
   const openQrModal = (poll) => {

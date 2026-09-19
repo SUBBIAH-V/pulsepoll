@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { pollService } from '../services/pollService';
 import { LiveIndicator } from '../components/LiveIndicator';
 import { useToast } from '../components/Toast';
@@ -11,22 +11,23 @@ import {
   Check, 
   Users, 
   AlertCircle, 
-  ArrowUpRight, 
-  Share2, 
   Plus, 
   Clock, 
   Lock, 
-  CheckCircle2,
-  Filter
+  Filter,
+  Search,
+  ArrowRight
 } from 'lucide-react';
 
 export const PollHistory = () => {
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const [polls, setPolls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all'); // 'all', 'active', 'closed'
   const [copiedId, setCopiedId] = useState(null);
+  const [lookupQuery, setLookupQuery] = useState('');
 
   useEffect(() => {
     fetchHistory();
@@ -34,18 +35,43 @@ export const PollHistory = () => {
 
   const fetchHistory = async () => {
     setLoading(true);
+    let apiPolls = [];
     try {
       const res = await pollService.getMyPolls();
-      if (res.success && res.data) {
-        setPolls(res.data);
-      } else {
-        setPolls([]);
+      if (res && res.success && Array.isArray(res.data)) {
+        apiPolls = res.data;
       }
-    } catch (err) {
-      setError(err.message || 'Failed to load poll history');
-    } finally {
-      setLoading(false);
-    }
+    } catch (_) {}
+
+    // Merge with local storage fallback polls
+    let localSaved = [];
+    try {
+      localSaved = JSON.parse(localStorage.getItem('pulsepoll_created_polls') || '[]');
+    } catch (_) {}
+
+    const combinedMap = new Map();
+    apiPolls.forEach(p => {
+      const id = p.pollId || p.id;
+      if (id) combinedMap.set(id, p);
+    });
+    localSaved.forEach(p => {
+      const id = p.pollId || p.id;
+      if (id && !combinedMap.has(id)) {
+        combinedMap.set(id, p);
+      }
+    });
+
+    const mergedList = Array.from(combinedMap.values());
+    setPolls(mergedList);
+    setLoading(false);
+  };
+
+  const handleLookupSubmit = (e) => {
+    e.preventDefault();
+    const clean = lookupQuery.trim();
+    if (!clean) return;
+    soundFx.playClick();
+    navigate(`/poll/${clean}/analytics`);
   };
 
   const copyPollLink = (poll) => {
@@ -66,7 +92,6 @@ export const PollHistory = () => {
   });
 
   const totalVotesCount = polls.reduce((acc, p) => acc + (p.totalVotes || 0), 0);
-  const activeCount = polls.filter((p) => !p.isExpired && p.status !== 'closed').length;
   const closedCount = polls.filter((p) => p.isExpired || p.status === 'closed').length;
 
   return (
@@ -78,11 +103,11 @@ export const PollHistory = () => {
           <div className="flex items-center space-x-3">
             <History className="w-6 h-6 text-[#C62828]" />
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F5F3EE] uppercase font-mono tracking-tight">
-              POLL HISTORY &amp; ARCHIVES
+              POLL HISTORY &amp; ANALYTICS ARCHIVE
             </h1>
           </div>
           <p className="text-xs text-[#A3A3A3] font-mono">
-            View all past presentations, vote analytics reports, and 6-digit PIN codes.
+            Access past presentation results, live interactive analytics, and 6-digit PIN codes.
           </p>
         </div>
 
@@ -94,6 +119,30 @@ export const PollHistory = () => {
           <Plus className="w-4 h-4 text-white" />
           <span>CREATE NEW POLL</span>
         </Link>
+      </div>
+
+      {/* Quick Analytics Lookup Bar */}
+      <div className="panel-card p-5 space-y-3 font-mono">
+        <div className="flex items-center space-x-2 text-xs text-[#F5F3EE] font-bold">
+          <Search className="w-4 h-4 text-[#C62828]" />
+          <span className="uppercase">INSTANT ANALYTICS LOOKUP BY PIN / ID</span>
+        </div>
+        <form onSubmit={handleLookupSubmit} className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="text"
+            value={lookupQuery}
+            onChange={(e) => setLookupQuery(e.target.value)}
+            placeholder="Enter 6-digit PIN or Poll ID (e.g. 839102)"
+            className="input-field flex-1 font-mono text-xs tracking-wider uppercase"
+          />
+          <button
+            type="submit"
+            className="btn-primary font-mono text-xs uppercase tracking-wider py-2.5 px-6 flex items-center justify-center space-x-2 shrink-0"
+          >
+            <span>VIEW ANALYTICS</span>
+            <ArrowRight className="w-4 h-4 text-[#0B0B0B]" />
+          </button>
+        </form>
       </div>
 
       {/* Overview Stats Bar */}
@@ -134,7 +183,7 @@ export const PollHistory = () => {
               filter === 'active' ? 'bg-[#F5F3EE] text-[#0B0B0B] font-bold' : 'text-[#A3A3A3] hover:text-[#F5F3EE]'
             }`}
           >
-            ACTIVE ({activeCount})
+            ACTIVE ({polls.length - closedCount})
           </button>
           <button
             onClick={() => { soundFx.playClick(); setFilter('closed'); }}
@@ -164,7 +213,7 @@ export const PollHistory = () => {
           <div className="space-y-1">
             <h3 className="text-base font-bold text-[#F5F3EE] uppercase">NO POLL HISTORY FOUND</h3>
             <p className="text-xs text-[#707070] max-w-sm mx-auto">
-              You haven't created any polls in this category yet. Start your first presentation now!
+              Create your first live presentation or enter a PIN code above to view live analytics!
             </p>
           </div>
           <Link
@@ -232,7 +281,7 @@ export const PollHistory = () => {
                   <Link
                     to={`/poll/${pId}/analytics`}
                     onClick={() => soundFx.playClick()}
-                    className="btn-accent text-xs uppercase tracking-wider py-2.5 px-3 flex items-center justify-center space-x-1.5"
+                    className="btn-accent text-xs uppercase tracking-wider py-2.5 px-3 flex items-center justify-center space-x-1.5 text-center"
                   >
                     <BarChart2 className="w-3.5 h-3.5" />
                     <span>ANALYTICS</span>
